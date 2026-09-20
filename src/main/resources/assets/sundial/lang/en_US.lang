@@ -1,0 +1,4 @@
+commands.timescale.invalid=Invalid time scale
+commands.timescale.get=Time scale is %s
+commands.timescale.set=Time scale set to %s
+commands.timescale.usage=/timescale [set <scale>]
