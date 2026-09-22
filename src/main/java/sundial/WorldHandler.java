@@ -17,8 +17,11 @@ public class WorldHandler {
 
     static private final Map<World, IWorldData> worlds = new HashMap<World, IWorldData>();
 
-    /** Global default scale — /timescale set applies to ALL dimensions; new worlds inherit it. */
+    /** Global scale — /timescale set applies it to ALL dimensions; new worlds inherit it. */
     static private volatile double globalScale = 1.0;
+
+    /** True once a global scale is known (from the command or the Overworld's saved data). */
+    static private volatile boolean globalSet = false;
 
     /** One-line warning when tick() itself throws (must never crash the server tick). */
     static private boolean tickFailureLogged = false;
@@ -42,6 +45,7 @@ public class WorldHandler {
      */
     static public void setScale(World world, double scale) {
         globalScale = scale;
+        globalSet = true;
         synchronized (worlds) {
             for (IWorldData wd : worlds.values()) {
                 wd.setScale(scale);
@@ -49,6 +53,36 @@ public class WorldHandler {
             }
         }
         FMLLog.log(Info.MODID, Level.INFO, String.format("Set time scale to %s (all dimensions)", scale));
+    }
+
+    /**
+     * Boot-time enforcement — called once the server is up, when every
+     * boot-loaded dimension is known. The Overworld's saved scale is the
+     * canonical global value; it is applied to EVERY loaded dimension, so
+     * load order can never leave a world behind.
+     */
+    static public void enforceGlobal() {
+        synchronized (worlds) {
+            for (Map.Entry<World, IWorldData> e : worlds.entrySet()) {
+                if (e.getKey().provider.dimensionId == 0) {
+                    globalScale = e.getValue()
+                        .getScale();
+                    globalSet = true;
+                    break;
+                }
+            }
+            if (!globalSet) return;
+            for (IWorldData wd : worlds.values()) {
+                if (wd.getScale() != globalScale) {
+                    wd.setScale(globalScale);
+                    wd.setTime(0.0);
+                }
+            }
+        }
+        FMLLog.log(
+            Info.MODID,
+            Level.INFO,
+            String.format("Sundial: global scale %s enforced on all loaded dimensions", globalScale));
     }
 
     /** Push the current scale to every loaded dimension's clients. */
@@ -124,12 +158,8 @@ public class WorldHandler {
         World world = event.world;
         IWorldData wd = world.isRemote ? WorldDataClient.get(world) : WorldDataServer.get(world);
         worlds.put(world, wd);
-        // Adopt a saved non-vanilla scale as the global default (Overworld loads first).
-        if (globalScale == 1.0 && wd.getScale() != 1.0) {
-            globalScale = wd.getScale();
-        }
-        // New worlds inherit the global scale — time dilation everywhere.
-        if (globalScale != 1.0 && wd.getScale() != globalScale) {
+        // Worlds loaded after the global scale is known inherit it immediately.
+        if (globalSet && wd.getScale() != globalScale) {
             wd.setScale(globalScale);
             wd.setTime(0.0);
         }
