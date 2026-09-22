@@ -16,7 +16,11 @@ nothing installed**.
   instead of once per second, so even modless clients see a perfectly smooth
   day/night cycle (corrections ≤ 1 tick, invisible).
 - **Per-dimension scales, persisted** — stored in the world save
-  (`sundial.dat`).
+  (`sundial.dat`). `/timescale set` applies the scale to **ALL dimensions**
+  at once, and any dimension that loads later inherits it — time dilation
+  everywhere, not just the Overworld.
+- **Quiet console** — one log line per `/timescale` command; no per-tick
+  spam.
 - **Sanitized input** — NaN / Infinity / huge scales are clamped; a poisoned
   value can never wrap the world clock negative.
 - **Crash-safe** — the ASM-inserted tick call is fully guarded; a failure can
@@ -28,7 +32,7 @@ nothing installed**.
 
 ```
 /timescale            -> show the current dimension's scale
-/timescale set <n>    -> set it (1.0 = vanilla; 0.3333 = 3x longer days; 0 = frozen)
+/timescale set <n>    -> set it for ALL dimensions (1.0 = vanilla; 0.3333 = 3x longer days; 0 = frozen)
 ```
 
 Examples:
@@ -54,7 +58,7 @@ Requires JDK 25 (GTNH Gradle toolchain) and network access to the GTNH maven:
 
 ```bash
 JAVA_HOME=/opt/jdk-25 ./gradlew clean build --no-daemon
-# output: build/libs/sundial-<git-hash>.jar (reobfuscated release jar; version 1.0.0 is in its metadata)
+# output: build/libs/sundial-<git-hash>.jar (reobfuscated release jar; version 1.1.0 is in its metadata)
 ```
 
 The release jar carries the coremod manifest

@@ -17,8 +17,8 @@ public class WorldHandler {
 
     static private final Map<World, IWorldData> worlds = new HashMap<World, IWorldData>();
 
-    /** Throttle the apply-log to ~once per 5 seconds. */
-    static private long lastLogMs = 0;
+    /** Global default scale — /timescale set applies to ALL dimensions; new worlds inherit it. */
+    static private volatile double globalScale = 1.0;
 
     /** One-line warning when tick() itself throws (must never crash the server tick). */
     static private boolean tickFailureLogged = false;
@@ -35,15 +35,30 @@ public class WorldHandler {
         return wd == null ? 1.0 : wd.getScale(); // null-world sender (console) -> vanilla scale
     }
 
+    /**
+     * Apply a scale to EVERY loaded dimension and remember it as the global
+     * default so worlds that load later inherit it. One log line per command —
+     * no per-tick spam.
+     */
     static public void setScale(World world, double scale) {
-        IWorldData wd = worlds.get(world);
-        if (wd == null) return;
-        wd.setScale(scale);
-        wd.setTime(0.0); // restart the fractional accumulator on any scale change
-        FMLLog.log(
-            Info.MODID,
-            Level.INFO,
-            String.format("Set %s time scale to %s", world.provider.getDimensionName(), scale));
+        globalScale = scale;
+        synchronized (worlds) {
+            for (IWorldData wd : worlds.values()) {
+                wd.setScale(scale);
+                wd.setTime(0.0); // restart the fractional accumulator on any scale change
+            }
+        }
+        FMLLog.log(Info.MODID, Level.INFO, String.format("Set time scale to %s (all dimensions)", scale));
+    }
+
+    /** Push the current scale to every loaded dimension's clients. */
+    static public void syncAll() {
+        synchronized (worlds) {
+            for (World w : worlds.keySet()) {
+                NetworkHandler.getInstance()
+                    .sync(w);
+            }
+        }
     }
 
     /**
@@ -81,18 +96,6 @@ public class WorldHandler {
             wd.setTime(acc - whole);
 
             if (whole > 0) {
-                long now = System.currentTimeMillis();
-                if (now - lastLogMs > 5000) {
-                    lastLogMs = now;
-                    FMLLog.log(
-                        Info.MODID,
-                        Level.INFO,
-                        String.format(
-                            "Sundial: +%d tick(s) applied to %s (scale %s)",
-                            whole,
-                            world.provider.getDimensionName(),
-                            scale));
-                }
                 return world.getWorldTime() + whole;
             }
             return world.getWorldTime();
@@ -119,7 +122,17 @@ public class WorldHandler {
     @SuppressWarnings("unused")
     public void onLoad(WorldEvent.Load event) {
         World world = event.world;
-        worlds.put(world, world.isRemote ? WorldDataClient.get(world) : WorldDataServer.get(world));
+        IWorldData wd = world.isRemote ? WorldDataClient.get(world) : WorldDataServer.get(world);
+        worlds.put(world, wd);
+        // Adopt a saved non-vanilla scale as the global default (Overworld loads first).
+        if (globalScale == 1.0 && wd.getScale() != 1.0) {
+            globalScale = wd.getScale();
+        }
+        // New worlds inherit the global scale — time dilation everywhere.
+        if (globalScale != 1.0 && wd.getScale() != globalScale) {
+            wd.setScale(globalScale);
+            wd.setTime(0.0);
+        }
     }
 
     @SubscribeEvent

@@ -48,8 +48,7 @@ class TimescaleCommand extends CommandBase {
                     return;
                 }
                 WorldHandler.setScale(world, scale);
-                NetworkHandler.getInstance()
-                    .sync(world);
+                WorldHandler.syncAll();
                 sender.addChatMessage(
                     new ChatComponentTranslation(
                         "commands.timescale.set",
