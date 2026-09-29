@@ -71,7 +71,7 @@ The release jar carries the coremod manifest
 
 CI (`.github/workflows/ci.yml`) builds Sundial on every push to `main` and then
 boots a throwaway dev server, failing the run unless it logs
-`Set time scale to … (all dimensions)`. Security analysis (CodeQL + dependency
+`Sundial: global scale … enforced`. Security analysis (CodeQL + dependency
 graph submission) runs weekly and on pushes (`security.yml`).
 
 Releases are prepared by the `Release` workflow: dispatch it from the Actions

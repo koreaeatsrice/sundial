@@ -3,7 +3,7 @@
         "modid": "sundial",
         "name": "Sundial",
         "description": "Sundial - change the length of a Minecraft day, smoothly: monotonic /time-add clock (no jumps), per-tick time broadcast (modless clients see no skips), crash-safe tick, sanitized scale, clients of ANY version accepted.",
-        "version": "1.1.1",
+        "version": "${modVersion}",
         "mcversion": "1.7.10",
         "url": "",
         "updateUrl": "",

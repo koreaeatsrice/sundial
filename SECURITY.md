@@ -43,13 +43,14 @@ Sundial is a **server-side time-dilation coremod** that replaces the vanilla
 daylight-cycle update with a smooth, monotonic clock. Its security-relevant
 boundaries are:
 
-1. **Fixed transformation target:** the coremod transformer rewrites a single
-   fixed vanilla hook (the time-of-day update). It targets no user-supplied
-   class or method names.
+1. **Fixed transformation targets:** the coremod transformer rewrites a small,
+   fixed set of vanilla methods (the server world tick, the client world tick,
+   and the server's time-sync cadence). It targets no user-supplied class or
+   method names.
 2. **No network, no code loading:** the mod opens no sockets, downloads
    nothing, and executes no code from data. Client machines need nothing
    installed (`acceptableRemoteVersions = "*"`).
 3. **Deterministic data model:** world time is advanced like a recurring
-   `/time add` — no external input feeds the clock beyond the configured scale.
-4. **Server operator's control:** the time scale and its per-world behaviour
-   are config-gated in `config/sundial.cfg`.
+   `/time add` — no external input feeds the clock.
+4. **Fixed built-in scale:** the dilation factor is a constant in this build
+   (no config file to tamper with); changing it requires a new release.
