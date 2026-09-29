@@ -14,9 +14,9 @@ Security updates are provided for the latest minor release line:
 ## Reporting a Vulnerability
 
 If you identify a security vulnerability in `sundial` (for example anything
-that could abuse the coremod transformer, the config parsing, or a crafted
-world whose time handling could crash or corrupt a server), please report it
-responsibly.
+that could abuse the coremod transformer, the `/timescale` command handling,
+or a crafted world whose time handling could crash or corrupt a server),
+please report it responsibly.
 
 ### How to Report
 - Open a private advisory report through GitHub Security Advisories at
@@ -52,5 +52,6 @@ boundaries are:
    installed (`acceptableRemoteVersions = "*"`).
 3. **Deterministic data model:** world time is advanced like a recurring
    `/time add` — no external input feeds the clock.
-4. **Fixed built-in scale:** the dilation factor is a constant in this build
-   (no config file to tamper with); changing it requires a new release.
+4. **Operator control:** the dilation factor is changed in-game with the
+   `/timescale` command (permission level 2) and stored per world in the world
+   save — there is no file-based config.

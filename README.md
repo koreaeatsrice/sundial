@@ -62,7 +62,7 @@ Requires JDK 25 (GTNH Gradle toolchain) and network access to the GTNH maven:
 
 ```bash
 JAVA_HOME=/opt/jdk-25 ./gradlew clean build --no-daemon
-# output: build/libs/sundial-<git-hash>.jar (reobfuscated release jar; version 1.1.1 is in its metadata)
+# output: build/libs/sundial-<version>.jar (reobfuscated release jar; the metadata version comes from the git tag)
 ```
 
 The release jar carries the coremod manifest
@@ -71,8 +71,9 @@ The release jar carries the coremod manifest
 
 CI (`.github/workflows/ci.yml`) builds Sundial on every push to `main` and then
 boots a throwaway dev server, failing the run unless it logs
-`Sundial: global scale … enforced`. Security analysis (CodeQL + dependency
-graph submission) runs weekly and on pushes (`security.yml`).
+`Sundial: global scale … enforced`. Dependency-graph submission runs weekly
+and on pushes (`security.yml`), feeding Dependabot alerts (enabled); weekly
+dependency PRs are auto-merged when green.
 
 Releases are prepared by the `Release` workflow: dispatch it from the Actions
 tab (choose `auto`/`patch`/`minor`/`major`, plus an optional dry run), or push a
