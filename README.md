@@ -1,5 +1,8 @@
 # Sundial
 
+> [!NOTE]
+> **Disclaimer:** The majority of this project was written by a Large Language Model (LLM). While prompted, built, and tested for reliability, please take note of this before downloading and using this mod. Constructive criticism is desired and greatly appreciated. I make no claims to be a bona fide Software Engineer nor pretend that this project makes me one.
+
 **Time dilation for Minecraft 1.7.10 (GTNH) — server-side only.**
 
 Sundial makes days and nights longer or shorter without breaking anything else.
@@ -65,6 +68,17 @@ JAVA_HOME=/opt/jdk-25 ./gradlew clean build --no-daemon
 The release jar carries the coremod manifest
 (`FMLCorePlugin: sundial.asm.Plugin`, `FMLCorePluginContainsFMLMod: true`) and
 `mcmod.info`.
+
+CI (`.github/workflows/ci.yml`) builds Sundial on every push to `main` and then
+boots a throwaway dev server, failing the run unless it logs
+`Set time scale to … (all dimensions)`. Security analysis (CodeQL + dependency
+graph submission) runs weekly and on pushes (`security.yml`).
+
+Releases are prepared by the `Release` workflow: dispatch it from the Actions
+tab (choose `auto`/`patch`/`minor`/`major`, plus an optional dry run), or push a
+`v*` tag. It generates grouped release notes from Conventional Commits, updates
+`CHANGELOG.md`, tags the release, builds the jar, and opens a **draft** GitHub
+release for review.
 
 ## Deploying (server)
 
