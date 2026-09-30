@@ -152,23 +152,43 @@ public class WorldHandler {
         }
     }
 
+    /** Log the first world-event failure only — a broken world must not spam. */
+    private static boolean worldEventFailureLogged = false;
+
+    private static void logWorldEventFailure(String where, Throwable failure) {
+        if (worldEventFailureLogged) return;
+        worldEventFailureLogged = true;
+        FMLLog.log(
+            Info.MODID,
+            Level.ERROR,
+            String.format("Sundial: %s failed (%s) — skipping this world event", where, failure.toString()));
+    }
+
     @SubscribeEvent
     @SuppressWarnings("unused")
     public void onLoad(WorldEvent.Load event) {
-        World world = event.world;
-        IWorldData wd = world.isRemote ? WorldDataClient.get(world) : WorldDataServer.get(world);
-        worlds.put(world, wd);
-        // Worlds loaded after the global scale is known inherit it immediately.
-        if (globalSet && wd.getScale() != globalScale) {
-            wd.setScale(globalScale);
-            wd.setTime(0.0);
+        try {
+            World world = event.world;
+            IWorldData wd = world.isRemote ? WorldDataClient.get(world) : WorldDataServer.get(world);
+            worlds.put(world, wd);
+            // Worlds loaded after the global scale is known inherit it immediately.
+            if (globalSet && wd.getScale() != globalScale) {
+                wd.setScale(globalScale);
+                wd.setTime(0.0);
+            }
+        } catch (Throwable failure) {
+            logWorldEventFailure("onLoad", failure);
         }
     }
 
     @SubscribeEvent
     @SuppressWarnings("unused")
     public void onUnload(WorldEvent.Unload event) {
-        worlds.remove(event.world);
+        try {
+            worlds.remove(event.world);
+        } catch (Throwable failure) {
+            logWorldEventFailure("onUnload", failure);
+        }
     }
 
 }
