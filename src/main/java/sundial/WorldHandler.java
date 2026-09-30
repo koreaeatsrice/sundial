@@ -170,7 +170,9 @@ public class WorldHandler {
         try {
             World world = event.world;
             IWorldData wd = world.isRemote ? WorldDataClient.get(world) : WorldDataServer.get(world);
-            worlds.put(world, wd);
+            synchronized (worlds) {
+                worlds.put(world, wd);
+            }
             // Worlds loaded after the global scale is known inherit it immediately.
             if (globalSet && wd.getScale() != globalScale) {
                 wd.setScale(globalScale);
@@ -185,7 +187,9 @@ public class WorldHandler {
     @SuppressWarnings("unused")
     public void onUnload(WorldEvent.Unload event) {
         try {
-            worlds.remove(event.world);
+            synchronized (worlds) {
+                worlds.remove(event.world);
+            }
         } catch (Throwable failure) {
             logWorldEventFailure("onUnload", failure);
         }
