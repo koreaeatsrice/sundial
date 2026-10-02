@@ -65,6 +65,10 @@ CHANGELOG_HEADER = (
     "this project adheres to [Semantic Versioning](https://semver.org/).\n"
 )
 
+# The repo owner is always credited in the release notes, even when every
+# commit was authored by the automation bot rather than by him.
+DEFAULT_CONTRIBUTOR = "koreaeatsrice"
+
 
 class Commit(NamedTuple):
     sha: str
@@ -172,6 +176,22 @@ def _commit_line(c: Commit, repo: str) -> str:
     return f"- {c.desc} ({link})"
 
 
+def contributor_handle(name: str, email: str) -> str:
+    """The GitHub @handle for a commit identity.
+
+    GitHub noreply addresses embed the username; fall back to the display
+    name so no contributor is dropped.
+    """
+    m = re.match(
+        r"^(?:\d+\+)?([^@+]+)@users\.noreply\.github\.com$",
+        (email or "").strip(),
+        re.IGNORECASE,
+    )
+    if m:
+        return "@" + m.group(1)
+    return "@" + (name or "").strip()
+
+
 def generate_release_notes(version: str, since: Optional[str], commits: List[Commit], repo: str) -> str:
     lines: List[str] = []
     for section, items in categorize_commits(commits).items():
@@ -182,15 +202,17 @@ def generate_release_notes(version: str, since: Optional[str], commits: List[Com
 
     contributors: List[str] = []
     for c in commits:
-        handle = c.author_name
-        if handle and handle not in contributors:
+        handle = contributor_handle(c.author_name, c.author_email)
+        if handle != "@" and handle not in contributors:
             contributors.append(handle)
-    if contributors:
-        lines.append("### Contributors")
-        lines.append("")
-        for name in contributors:
-            lines.append(f"- {name}")
-        lines.append("")
+    owner = "@" + DEFAULT_CONTRIBUTOR
+    if owner not in contributors:
+        contributors.append(owner)
+    lines.append("### Contributors")
+    lines.append("")
+    for handle in contributors:
+        lines.append(f"- {handle}")
+    lines.append("")
 
     if since:
         lines.append(f"**Full changelog**: https://github.com/{repo}/compare/{since}...v{version}")

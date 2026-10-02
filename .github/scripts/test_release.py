@@ -8,9 +8,11 @@ import tempfile
 import unittest
 
 from release import (
+    DEFAULT_CONTRIBUTOR,
     Commit,
     calculate_next_version,
     categorize_commits,
+    contributor_handle,
     generate_release_notes,
     last_tag,
     parse_semver,
@@ -115,8 +117,70 @@ class TestReleaseEngine(unittest.TestCase):
             notes,
         )
         self.assertIn("### Contributors", notes)
-        self.assertIn("- Uriel", notes)
+        self.assertIn("- @Uriel", notes)
+        self.assertIn("- @koreaeatsrice", notes)
         self.assertIn("https://github.com/koreaeatsrice/sundial/compare/v1.3.0...v1.4.0", notes)
+
+    def test_contributor_handle_prefers_noreply_username(self):
+        self.assertEqual(
+            contributor_handle("Uriel", "1234567+someone@users.noreply.github.com"),
+            "@someone",
+        )
+        self.assertEqual(
+            contributor_handle("Uriel", "someone@users.noreply.github.com"),
+            "@someone",
+        )
+        # Case-insensitive host and embedded username preserved.
+        self.assertEqual(
+            contributor_handle("Uriel", "SomeOne@Users.Noreply.GitHub.com"),
+            "@SomeOne",
+        )
+
+    def test_contributor_handle_falls_back_to_display_name(self):
+        self.assertEqual(contributor_handle("Display Name", "plain@example.com"), "@Display Name")
+        self.assertEqual(contributor_handle("Uriel", ""), "@Uriel")
+        self.assertEqual(contributor_handle("", ""), "@")
+
+    def test_owner_present_when_no_commit_authored_by_owner(self):
+        commits = [
+            Commit(
+                "aaaaaaaaaaaa",
+                "fix: tweak",
+                "",
+                "fix",
+                None,
+                False,
+                "tweak",
+                "uriel-runner[bot]",
+                "uriel-runner[bot]@users.noreply.github.com",
+            ),
+        ]
+        notes = generate_release_notes("1.4.0", "v1.3.0", commits, repo="koreaeatsrice/sundial")
+        self.assertIn("### Contributors", notes)
+        self.assertIn("- @koreaeatsrice", notes)
+        self.assertIn("- @uriel-runner[bot]", notes)
+
+    def test_owner_not_duplicated_when_owner_is_author(self):
+        commits = [
+            Commit(
+                "bbbbbbbbbbbb",
+                "fix: owner commit",
+                "",
+                "fix",
+                None,
+                False,
+                "owner commit",
+                "koreaeatsrice",
+                "1234567+koreaeatsrice@users.noreply.github.com",
+            ),
+        ]
+        notes = generate_release_notes("1.4.0", "v1.3.0", commits, repo="koreaeatsrice/sundial")
+        self.assertEqual(notes.count("- @koreaeatsrice"), 1)
+
+    def test_contributors_section_always_emitted(self):
+        notes = generate_release_notes("1.4.0", "v1.3.0", [], repo="koreaeatsrice/sundial")
+        self.assertIn("### Contributors", notes)
+        self.assertIn("- @" + DEFAULT_CONTRIBUTOR, notes)
 
     def test_update_changelog(self):
         sample = """# Changelog
