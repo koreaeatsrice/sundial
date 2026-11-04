@@ -3,4 +3,6 @@
  * supported configurations (api, implementation, compileOnly, runtimeOnly, ...).
  */
 dependencies {
+    // Unit tests for the ASM matcher and the lunar arithmetic (test-only, not shipped).
+    testImplementation "junit:junit:4.13.2"
 }
