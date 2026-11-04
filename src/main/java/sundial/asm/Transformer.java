@@ -130,14 +130,32 @@ public class Transformer implements IClassTransformer {
         return writer.toByteArray();
     }
 
+    /**
+     * Vanilla {@code WorldClient.tick()} (obf {@code bjf.b()}) advances TWO clocks:
+     * <ol>
+     * <li>the day/moon clock — the doDaylightCycle-gated
+     * {@code setWorldTime(getWorldTime() + 1)} — obf {@code b(J()+1)} at offsets
+     * 26-33 of the real client jar;</li>
+     * <li>the world-age clock — {@code func_82738_a(getTotalWorldTime() + 1)} — obf
+     * {@code a(I()+1)} at offsets 4-11.</li>
+     * </ol>
+     * In the OBFUSCATED namespace {@code getWorldTime} is {@code J} and
+     * {@code setWorldTime} is {@code b}; {@code I}/{@code a} are
+     * {@code getTotalWorldTime}/{@code func_82738_a}. The day/moon clock is the one
+     * {@code World.getMoonPhase()} and {@code getCelestialAngle()} read
+     * ({@code worldTime/24000 % 8}), so THAT is the increment Sundial must dilute —
+     * the world-age clock stays at +1/tick.
+     * <p>
+     * An earlier build shipped {@code I}/{@code a} here (labelled getWorldTime/
+     * setWorldTime) and then "removed" the {@code J}/{@code b} increment: in
+     * production that diluted the world-age clock and DELETED the day/moon clock, so
+     * the client clock — and the moon phase derived from it — no longer advanced
+     * with the world. The names are now the day-clock ones.
+     */
     private void patchWorldClientTick(MethodNode method, boolean obfuscated) {
         final String WORLD_CLIENT = obfuscated ? "bjf" : "net/minecraft/client/multiplayer/WorldClient";
-        // The FIRST (unconditional) increment in bjf.b() uses getWorldTime "I"/setWorldTime "a"
-        // in the real obfuscated client jar (offsets 4-11, javap-verified).
-        // NOTE: "J"/"b" are the names of the SECOND, gated increment below — an earlier
-        // build shipped those here by mistake and matched nothing for this first one.
-        final String GET_WORLD_TIME = obfuscated ? "I" : "getWorldTime";
-        final String SET_WORLD_TIME = obfuscated ? "a" : "setWorldTime";
+        final String GET_WORLD_TIME = obfuscated ? "J" : "getWorldTime";
+        final String SET_WORLD_TIME = obfuscated ? "b" : "setWorldTime";
         final String TICK_DESC = obfuscated ? "(Lahb;)J" : "(Lnet/minecraft/world/World;)J";
         InsnList search = new InsnList();
         search.add(new MethodInsnNode(Opcodes.INVOKEVIRTUAL, WORLD_CLIENT, GET_WORLD_TIME, "()J", false));
@@ -151,29 +169,6 @@ public class Transformer implements IClassTransformer {
             FMLRelaunchLog.log(Info.MODID, Level.INFO, "Successfully patched WorldClient.tick()");
         } else {
             FMLRelaunchLog.log(Info.MODID, Level.ERROR, "Failed to patch WorldClient.tick()");
-            return;
-        }
-        // The vanilla client tick has a SECOND, doDaylightCycle-gated +1 increment.
-        // In the real obfuscated client jar (bjf.b() offsets 26-33, javap-verified)
-        // this one uses getWorldTime "J"/setWorldTime "b" — distinct from the
-        // unconditional increment's "I"/"a" handled above; in the dev universe both
-        // use the MCP names, so the first-match scan removes the remaining occurrence.
-        // Leaving it in makes the client clock advance at scale+1 per tick and drift
-        // against the server's time packets — the visible "3 forward, 2 back" stutter.
-        InsnList gatedSearch = new InsnList();
-        gatedSearch.add(
-            new MethodInsnNode(Opcodes.INVOKEVIRTUAL, WORLD_CLIENT, obfuscated ? "J" : "getWorldTime", "()J", false));
-        gatedSearch.add(new InsnNode(Opcodes.LCONST_1));
-        gatedSearch.add(new InsnNode(Opcodes.LADD));
-        gatedSearch.add(
-            new MethodInsnNode(Opcodes.INVOKEVIRTUAL, WORLD_CLIENT, obfuscated ? "b" : "setWorldTime", "(J)V", false));
-        InsnList noop = new InsnList();
-        noop.add(new InsnNode(Opcodes.POP2)); // drop the two aload_0 receivers
-        if (patchInstructions(method.instructions, gatedSearch, noop)) {
-            FMLRelaunchLog.log(Info.MODID, Level.INFO, "Removed gated daylight increment from WorldClient.tick()");
-        } else {
-            FMLRelaunchLog
-                .log(Info.MODID, Level.INFO, "No gated daylight increment found in WorldClient.tick() (fine)");
         }
     }
 
