@@ -38,13 +38,17 @@ public class TransformerTest {
     private static byte[] worldClientClass() {
         ClassNode cn = base("bjf");
         MethodNode m = new MethodNode(Opcodes.ACC_PUBLIC, "b", "()V", null, null);
-        // world-age clock: this.a(this.I() + 1) -> MUST be left alone (stays +1/tick)
+        // world-age clock: this.a(this.I() + 1) -> MUST be left alone (stays +1/tick).
+        // Like the real 1.7.10 class this is also a LONG counter, so only the
+        // doDaylightCycle guard can tell the two apart.
         m.instructions.add(new org.objectweb.asm.tree.VarInsnNode(Opcodes.ALOAD, 0));
         m.instructions.add(new org.objectweb.asm.tree.VarInsnNode(Opcodes.ALOAD, 0));
         m.instructions.add(call("bjf", "I", "()J"));
         m.instructions.add(new org.objectweb.asm.tree.InsnNode(Opcodes.LCONST_1));
         m.instructions.add(new org.objectweb.asm.tree.InsnNode(Opcodes.LADD));
         m.instructions.add(call("bjf", "a", "(J)V"));
+        // gamerule guard that marks the day/moon clock
+        m.instructions.add(new LdcInsnNode("doDaylightCycle"));
         // day/moon clock: this.b(this.J() + 1) -> MUST be replaced by WorldHandler.tick()
         m.instructions.add(new org.objectweb.asm.tree.VarInsnNode(Opcodes.ALOAD, 0));
         m.instructions.add(new org.objectweb.asm.tree.VarInsnNode(Opcodes.ALOAD, 0));
@@ -61,6 +65,17 @@ public class TransformerTest {
         ClassNode cn = base("mt");
         cn.fields.add(new org.objectweb.asm.tree.FieldNode(Opcodes.ACC_PRIVATE, "x", "Lays;", null, null));
         MethodNode m = new MethodNode(Opcodes.ACC_PUBLIC, "b", "()V", null, null);
+        // world-age clock on WorldInfo: n()J +1 -> o(J)V, unconditional -> MUST stay
+        m.instructions.add(new org.objectweb.asm.tree.VarInsnNode(Opcodes.ALOAD, 0));
+        m.instructions.add(new FieldInsnNode(Opcodes.GETFIELD, "mt", "x", "Lays;"));
+        m.instructions.add(new org.objectweb.asm.tree.VarInsnNode(Opcodes.ALOAD, 0));
+        m.instructions.add(new FieldInsnNode(Opcodes.GETFIELD, "mt", "x", "Lays;"));
+        m.instructions.add(call("ays", "n", "()J"));
+        m.instructions.add(new org.objectweb.asm.tree.InsnNode(Opcodes.LCONST_1));
+        m.instructions.add(new org.objectweb.asm.tree.InsnNode(Opcodes.LADD));
+        m.instructions.add(call("ays", "o", "(J)V"));
+        // gamerule guard, then the day clock: g()J +1 -> c(J)V
+        m.instructions.add(new LdcInsnNode("doDaylightCycle"));
         m.instructions.add(new org.objectweb.asm.tree.VarInsnNode(Opcodes.ALOAD, 0));
         m.instructions.add(new FieldInsnNode(Opcodes.GETFIELD, "mt", "x", "Lays;"));
         m.instructions.add(new org.objectweb.asm.tree.VarInsnNode(Opcodes.ALOAD, 0));
@@ -159,6 +174,9 @@ public class TransformerTest {
         assertTrue(hasCall(b, "sundial/WorldHandler", "tick", "(Lahb;)J"));
         assertTrue(hasCall(b, "ays", "c", "(J)V"));
         assertFalse(isAddOneForm(b, "g", "c"));
+        // the world-age clock must survive untouched
+        assertTrue("age clock +1 form must remain", isAddOneForm(b, "n", "o"));
+        assertTrue(hasCall(b, "ays", "o", "(J)V"));
     }
 
     @Test
